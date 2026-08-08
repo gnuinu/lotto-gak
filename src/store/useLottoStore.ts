@@ -5,12 +5,15 @@ import {
   MAX_INCLUDE,
   defaultOptions,
   drawGames,
+  latestDraw,
   type Ball,
   type DrawFailureReason,
   type DrawOptions,
   type DrawResult,
   type HistoryEntry,
+  type OfficialDraw,
 } from '../domain/index.ts';
+import { loadOfficialDraws } from '../lib/draws.ts';
 import { randomSeed } from '../lib/seed.ts';
 import {
   HISTORY_LIMIT,
@@ -19,7 +22,13 @@ import {
   saveHistory,
 } from '../lib/storage.ts';
 
-export type TabId = 'draw' | 'filter' | 'history';
+export type TabId = 'draw' | 'filter' | 'history' | 'win';
+
+/**
+ * 당첨 번호 데이터 상태.
+ * unavailable = 파일이 아직 배포되지 않았거나 비어 있음. 이때도 추첨은 정상 동작한다.
+ */
+export type DrawsStatus = 'idle' | 'loading' | 'ready' | 'unavailable';
 
 /** 번호 그리드에서 한 번호가 가질 수 있는 상태. */
 export type BallState = 'none' | 'include' | 'exclude';
@@ -33,6 +42,12 @@ interface LottoState {
   /** 안내 문구(고정수 5개 초과 등). 도메인 실패와 구분한다. */
   notice: string | null;
   history: HistoryEntry[];
+
+  /** 실제 회차 당첨 번호 (Phase 2). 정적 파일에서 한 번만 읽는다. */
+  draws: OfficialDraw[];
+  drawsStatus: DrawsStatus;
+  /** 당첨 탭에서 보고 있는 회차. */
+  selectedRound: number | null;
 
   setTab: (tab: TabId) => void;
   setGameCount: (count: number) => void;
@@ -50,6 +65,9 @@ interface LottoState {
   restore: (entry: HistoryEntry) => void;
   removeHistoryEntry: (id: string) => void;
   clearHistory: () => void;
+
+  loadDrawData: () => Promise<void>;
+  setSelectedRound: (round: number) => void;
 }
 
 /**
@@ -80,6 +98,10 @@ export const useLottoStore = create<LottoState>()((set, get) => ({
   failure: null,
   notice: null,
   history: loadHistory(),
+
+  draws: [],
+  drawsStatus: 'idle',
+  selectedRound: null,
 
   setTab: (tab) => set({ tab }),
 
@@ -212,6 +234,31 @@ export const useLottoStore = create<LottoState>()((set, get) => ({
     set({ history: [] });
     saveHistory([]);
   },
+
+  /**
+   * 당첨 번호 데이터를 읽는다. 당첨 탭을 처음 열 때만 호출된다.
+   * 실패해도 앱의 다른 기능에는 영향이 없다.
+   */
+  loadDrawData: async () => {
+    const status = get().drawsStatus;
+    if (status === 'loading' || status === 'ready') return;
+
+    set({ drawsStatus: 'loading' });
+    const outcome = await loadOfficialDraws();
+
+    if (!outcome.ok) {
+      set({ drawsStatus: 'unavailable' });
+      return;
+    }
+
+    set({
+      draws: outcome.draws,
+      drawsStatus: 'ready',
+      selectedRound: latestDraw(outcome.draws)?.round ?? null,
+    });
+  },
+
+  setSelectedRound: (round) => set({ selectedRound: round }),
 }));
 
 export { ballStateOf, DEFAULT_MAX_CONSECUTIVE };

@@ -34,7 +34,9 @@ export default defineConfig({
       },
       workbox: {
         // 정적 전용 앱이므로 빌드 산출물 전체를 프리캐시한다.
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        // json 이 포함되어야 당첨 번호 데이터도 오프라인에서 열린다.
+        // 데이터는 배포 때마다 새 리비전으로 프리캐시된다(갱신 = 새 배포).
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2,json}'],
         navigateFallback: '/lotto-gak/index.html',
         cleanupOutdatedCaches: true,
       },

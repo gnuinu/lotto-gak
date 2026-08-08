@@ -699,6 +699,225 @@ input {
   color: var(--text-dim);
 }
 
+/* ── 당첨 번호 (Phase 2) ─────────────────────────────── */
+
+.round-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.round-nav__btn {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.round-nav__btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.round-nav__center {
+  flex: 1;
+  text-align: center;
+}
+
+.round-nav__round {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--neon-2);
+  text-shadow: 0 0 14px rgba(72, 230, 208, 0.45);
+}
+
+.round-nav__date {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.round-nav__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.winning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.winning__main {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+
+.winning__plus {
+  color: var(--text-faint);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.winning__bonus {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.winning__bonus-label {
+  font-size: 9px;
+  color: var(--text-faint);
+}
+
+/* 결과 카드와 같은 비율로 보이도록 당첨 번호도 칸을 채운다 */
+.winning__main .ball--md,
+.winning__bonus .ball--md {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  font-size: clamp(13px, 3.5vw, 17px);
+}
+
+.winning__bonus .ball--md {
+  width: 34px;
+}
+
+/* ── 등수 배지 / 대조 결과 ───────────────────────────── */
+
+.rank-tally {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 4px;
+}
+
+.rank-badge {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+}
+
+.rank-badge--1 {
+  background: rgba(251, 196, 0, 0.16);
+  border-color: var(--gold);
+  color: #ffe9a8;
+}
+
+.rank-badge--2 {
+  background: rgba(255, 77, 157, 0.14);
+  border-color: rgba(255, 77, 157, 0.6);
+  color: #ffc8de;
+}
+
+.rank-badge--3 {
+  background: rgba(72, 230, 208, 0.12);
+  border-color: rgba(72, 230, 208, 0.5);
+  color: #b9f5ec;
+}
+
+.check-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+}
+
+/* 좁은 화면에서 공과 글자가 부딪히지 않도록 두 줄로 나눈다 */
+.check-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0;
+  border-bottom: 1px dashed rgba(36, 48, 74, 0.8);
+}
+
+.check-row:last-child {
+  border-bottom: none;
+}
+
+.check-row__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.check-row__count {
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.check-row__date {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.check-row__balls {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 5px;
+  min-width: 0;
+  /* 카드 폭을 다 쓰면 공이 과하게 커진다. 결과 카드와 비슷한 크기로 묶어둔다. */
+  max-width: 268px;
+}
+
+.ball-wrap {
+  display: flex;
+  min-width: 0;
+}
+
+/* 당첨 번호와 겹치지 않은 번호는 뒤로 물린다 */
+.ball-wrap--miss {
+  opacity: 0.32;
+  filter: saturate(0.5);
+}
+
+/* ── 출현 횟수 ───────────────────────────────────────── */
+
+.freq-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px 4px;
+  margin-top: 12px;
+}
+
+.freq-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.freq-cell__count {
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+  min-width: 18px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.001ms !important;
