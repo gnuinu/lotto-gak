@@ -96,3 +96,41 @@ export interface HistoryEntry {
   id: string;
   result: DrawResult;
 }
+
+/**
+ * 실제 회차의 당첨 번호 (Phase 2).
+ *
+ * 정적 파일(public/data/draws.json)로 들어온다. 도메인은 이 데이터를 **인자로만**
+ * 받는다 — 직접 가져오지 않는다. 추첨 로직은 이 데이터에 의존하지 않으며,
+ * 앞으로도 의존하게 만들면 안 된다(시드 재현 계약이 깨진다).
+ */
+export interface OfficialDraw {
+  /** 회차. 1회차부터 순차 증가. */
+  round: number;
+  /** 추첨일 'YYYY-MM-DD' */
+  date: string;
+  /** 당첨 번호 6개. 오름차순. */
+  numbers: Ball[];
+  /** 보너스 번호. */
+  bonus: Ball;
+}
+
+/** 로또 6/45 등수. 1등 6개 / 2등 5개+보너스 / 3등 5개 / 4등 4개 / 5등 3개 */
+export type Rank = 1 | 2 | 3 | 4 | 5;
+
+export interface MatchOutcome {
+  /** 당첨 번호와 겹친 번호. 오름차순. */
+  matched: Ball[];
+  /** 겹친 개수 0..6 */
+  matchCount: number;
+  /** 보너스 번호를 포함하는지 */
+  bonusMatched: boolean;
+  /** 등수. null 이면 낙첨. */
+  rank: Rank | null;
+}
+
+export interface BallFrequency {
+  ball: Ball;
+  /** 해당 구간에서 뽑힌 횟수 */
+  count: number;
+}

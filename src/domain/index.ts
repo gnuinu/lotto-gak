@@ -4,3 +4,4 @@ export * from './types.ts';
 export * from './rng.ts';
 export * from './filter.ts';
 export * from './draw.ts';
+export * from './stats.ts';

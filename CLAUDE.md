@@ -17,11 +17,15 @@ src/
     rng.ts     mulberry32 — 상태를 명시적으로 주고받는다
     draw.ts    drawGames(seed, options) — rejection sampling
     filter.ts  필터 술어 + 옵션 검증 + 불가능 조건 사전 판정
+    stats.ts   실제 회차 데이터 대조·통계 (Phase 2). 데이터를 인자로만 받는다
     index.ts   공개 API 배럴
   store/       Zustand. 도메인 호출과 화면 상태만 담당
   components/  화면. 도메인 규칙을 다시 구현하지 않는다
-  lib/         UI 쪽 헬퍼(색상표, 문구 변환, localStorage, 공유)
+  lib/         UI 쪽 헬퍼(색상표, 문구 변환, localStorage, 공유, 데이터 로딩)
   styles/      global.css
+scripts/
+  gen-icons.mjs    PWA 아이콘 생성
+  update-draws.mjs 당첨 번호 수집 (CI 전용. 앱은 이 코드를 쓰지 않는다)
 ```
 
 **하드 규칙**
@@ -32,7 +36,7 @@ src/
 2. 도메인은 node 에서 단독 실행/테스트가 가능해야 한다. 확인:
    ```bash
    node --experimental-strip-types -e "import('./src/domain/index.ts').then(m => console.log(m.drawGames(1, m.defaultOptions())))"
-   npm test          # vitest — 도메인 단위 테스트 24개
+   npm test          # vitest — 도메인 단위 테스트
    ```
    도메인 import 는 확장자(`.ts`)를 붙인다. node 가 로더 없이 그대로 읽을 수 있게 하려는 것.
 3. 검증·필터·난수는 전부 도메인 책임이다. 컴포넌트에서 `Math.random()` 을 쓰거나
@@ -43,7 +47,7 @@ src/
 ### 라우터 금지
 
 GitHub Pages 는 SPA fallback 이 없어 딥링크가 404 가 된다. 그래서 라우터를 쓰지
-않고 **단일 페이지 + 탭 전환**(`store.tab`: `draw` | `filter` | `history`)으로
+않고 **단일 페이지 + 탭 전환**(`store.tab`: `draw` | `filter` | `history` | `win`)으로
 화면을 나눈다. 새 화면이 필요하면 탭이나 섹션을 추가하고, 절대 URL 경로를 만들지 않는다.
 
 ### 결정성 (determinism)
@@ -135,18 +139,73 @@ UI 는 `failure` 사유를 `failureMessage()` 로 바꿔 "조건이 너무 빡�
       새로고침 정상, 아이콘·manifest 로드, 비행기 모드에서 재방문 시 오프라인 동작.
 - [ ] PWA 아이콘을 바꿨다면 `node scripts/gen-icons.mjs` 를 다시 돌리고
       `public/icon-*.png` 를 커밋한다(빌드 단계에서 생성하지 않는다).
+- [ ] workbox `globPatterns` 에 `json` 이 들어 있어야 당첨 데이터가 오프라인에서도
+      열린다. 데이터 갱신은 곧 새 배포이므로 프리캐시로 충분하다.
+- [ ] 데이터 갱신 워크플로가 `main` 에 push 해야 한다. 브랜치 보호 규칙을 걸 때는
+      `github-actions[bot]` 의 push 를 허용할 것.
 
-## Phase 2 를 위해 열어 둔 자리
+## 당첨 번호 데이터 (Phase 2)
 
-당첨 번호 데이터(`draws.json`)를 GitHub Actions 로 주기 갱신할 예정이다. 지금은
-런타임에 **어떤 외부 API도 호출하지 않는다**. 추가할 때의 모양만 정해 둔다:
+실제 회차 데이터를 다루지만 **앱은 런타임에 외부 API 를 호출하지 않는다.**
+네트워크 접근은 CI 안에서만 일어난다.
 
-- 데이터는 빌드 산출물의 정적 파일(`public/data/draws.json`)로 들어온다.
-  런타임 fetch 는 같은 오리진의 이 파일 하나로 제한하고, 실패하면 조용히
-  기능을 끈다(오프라인에서 앱이 깨지면 안 된다).
-- 통계·분석은 도메인에 순수 함수로 추가한다(`domain/stats.ts`).
-  데이터를 **인자로 받는** 함수여야 한다 — 도메인이 직접 fetch 하지 않는다.
-- 추첨 로직은 이 데이터에 의존하지 않게 유지한다. 결정성 계약이 깨지면 안 된다.
+```
+동행복권 조회 API
+   │  scripts/update-draws.mjs  (GitHub Actions 안에서만 실행)
+   ▼
+public/data/draws.json          저장소에 커밋되는 정적 파일
+   │  배포
+   ▼
+src/lib/draws.ts                같은 오리진 파일 1개만 fetch
+   │
+   ▼
+src/domain/stats.ts             순수 함수. 데이터를 인자로 받는다
+```
+
+**규칙**
+
+1. 브라우저에서 외부 도메인으로 요청을 보내지 않는다. `src/lib/draws.ts` 는
+   `import.meta.env.BASE_URL` 기준 상대 경로 하나만 읽는다.
+2. `domain/stats.ts` 는 fetch 하지 않는다. 데이터를 **인자로 받는** 순수 함수만 둔다.
+3. **추첨 로직은 이 데이터에 절대 의존하지 않는다.** 의존하면 "같은 seed + 같은
+   options → 같은 결과" 계약이 깨진다. `draw.ts` 가 `stats.ts` 를 import 하는 일은 없어야 한다.
+4. 데이터가 없어도 앱은 정상 동작해야 한다. 로딩 실패는 예외가 아니라
+   `{ ok: false, reason }` 이고, 당첨 탭만 안내 문구로 바뀐다.
+5. 데이터 파일을 믿지 않는다. `normalizeDraws()` 가 항목을 검증하고, 회차 중복을
+   제거하고, 번호를 오름차순으로 맞춘다.
+6. `scripts/update-draws.mjs` 는 도메인 코드를 import 하지 않고 검증을 자체적으로
+   한다. 다루는 대상이 다르다 — 스크립트는 "믿을 수 없는 외부 응답",
+   도메인은 "이미 파일에 저장된 데이터"를 검증한다.
+
+### 데이터 갱신 워크플로
+
+`.github/workflows/update-draws.yml` 이 토요일 22:00 KST(추첨 이후)와 일요일
+10:00 KST(재시도)에 돌면서 새 회차만 이어 받아 커밋한다.
+
+- 새 회차가 없으면 **파일을 건드리지 않는다.** 그래서 `git diff --quiet` 이
+  "변경 없음"의 신뢰할 수 있는 신호가 된다(`updatedAt` 도 이때는 갱신하지 않는다).
+- 수집 실패(HTTP 오류, 응답 형식 이상)는 조용히 넘기지 않고 워크플로를 실패시킨다.
+  기존 파일은 그대로 남는다.
+- 커밋 후 배포는 `deploy.yml` 을 `workflow_call` 로 **직접 호출**한다.
+  `GITHUB_TOKEN` 으로 만든 push 는 다른 워크플로를 깨우지 않기 때문이다.
+  그래서 `deploy.yml` 의 트리거에 `workflow_call` 이 들어 있다 — 지우지 말 것.
+- 로컬에서 손으로 받아볼 때:
+  ```bash
+  node scripts/update-draws.mjs --dry-run     # 파일을 쓰지 않고 확인
+  node scripts/update-draws.mjs --max=5       # 이번 실행에서 5회차만
+  LOTTO_API_URL=http://127.0.0.1:8899/x node scripts/update-draws.mjs  # 모의 서버로 테스트
+  ```
+
+### 통계 문구 원칙
+
+번호별 출현 횟수는 **예측이 아니다.** 매 회차는 서로 독립이므로 과거에 많이 나온
+번호가 다음에 더 나올 이유가 없다. 그래서:
+
+- "많이 나온 번호" 는 기록으로만 보여주고, 반드시 독립성 안내를 함께 둔다.
+- 빈도 상위 번호를 고정수로 자동 적용하는 식의 기능은 넣지 않는다.
+  "이 번호가 유리하다" 는 암시가 되기 때문이다.
+- 내 번호 대조는 "저장된 번호를 그 회차 결과와 견주어 본 것" 이다.
+  실제 구매를 뜻하지 않으므로 문구도 그렇게 유지한다.
 
 ## 문구 원칙
 

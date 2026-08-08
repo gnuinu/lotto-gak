@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # 당첨 데이터 갱신 워크플로가 이 워크플로를 직접 호출한다.
+  # GITHUB_TOKEN 으로 만든 push 는 다른 워크플로를 깨우지 않기 때문에,
+  # 데이터 커밋 후 배포는 이렇게 명시적으로 이어 붙인다.
+  workflow_call:
 
 # GITHUB_TOKEN 에 Pages 배포 권한을 준다.
 permissions:

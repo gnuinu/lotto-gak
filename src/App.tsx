@@ -3,6 +3,7 @@ import { DrawPanel } from './components/DrawPanel.tsx';
 import { FilterPanel } from './components/FilterPanel.tsx';
 import { HistoryPanel } from './components/HistoryPanel.tsx';
 import { Tabs } from './components/Tabs.tsx';
+import { WinPanel } from './components/WinPanel.tsx';
 import { useLottoStore } from './store/useLottoStore.ts';
 
 export function App() {
@@ -37,6 +38,7 @@ export function App() {
         {tab === 'draw' && <DrawPanel />}
         {tab === 'filter' && <FilterPanel />}
         {tab === 'history' && <HistoryPanel />}
+        {tab === 'win' && <WinPanel />}
       </main>
 
       <BottomBar />

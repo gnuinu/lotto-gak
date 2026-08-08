@@ -20,6 +20,8 @@
   항상 같은 번호가 나옵니다.
 - **이력** — 이 기기에 최근 100건까지 저장됩니다. 개별/전체 삭제 가능.
 - **복사·공유** — Web Share API 를 지원하면 공유 시트, 없으면 클립보드로 복사합니다.
+- **당첨 번호 대조** — 회차별 당첨 번호를 보고, 저장된 이력과 대조해 등수를 보여줍니다.
+  번호별 출현 횟수(최근 50회 / 100회 / 전체)도 함께 제공합니다.
 - **PWA** — 홈 화면에 추가할 수 있고, 비행기 모드에서도 완전히 동작합니다.
 
 번호는 실제 로또 공 규격 색상을 그대로 씁니다.
@@ -55,13 +57,16 @@ node --experimental-strip-types \
 
 ```
 src/
-  domain/       순수 TypeScript. 난수·추첨·필터·검증. React 의존성 0
-  store/        Zustand 상태
-  components/   화면 (라우터 없이 탭 전환)
-  lib/          공 색상표, 문구 변환, localStorage, 공유
-  styles/       global.css
+  domain/          순수 TypeScript. 난수·추첨·필터·검증·통계. React 의존성 0
+  store/           Zustand 상태
+  components/      화면 (라우터 없이 탭 전환)
+  lib/             공 색상표, 문구 변환, localStorage, 공유, 데이터 로딩
+  styles/          global.css
+public/data/
+  draws.json       회차별 당첨 번호 (CI 가 자동 갱신)
 scripts/
-  gen-icons.mjs PWA 아이콘(PNG) 생성기
+  gen-icons.mjs    PWA 아이콘(PNG) 생성기
+  update-draws.mjs 당첨 번호 수집기 (GitHub Actions 에서 실행)
 ```
 
 자세한 규칙(도메인/UI 분리, 결정성 계약, 색상표, 실패 처리, 배포 체크리스트)은
@@ -72,6 +77,23 @@ scripts/
 `main` 에 push 하면 GitHub Actions(`.github/workflows/deploy.yml`)가 테스트 →
 빌드 → GitHub Pages 배포를 수행합니다. 저장소 Settings → Pages 의 **Source** 를
 **GitHub Actions** 로 설정해 두어야 합니다.
+
+## 당첨 번호 데이터
+
+앱은 **런타임에 외부 API 를 호출하지 않습니다.** 당첨 번호는 저장소에 커밋된 정적
+파일(`public/data/draws.json`)에서 읽습니다.
+
+그 파일은 `.github/workflows/update-draws.yml` 이 매주(토 22:00 KST, 일 10:00 KST
+재시도) 새 회차만 이어 받아 갱신하고, 변경이 있을 때만 커밋 후 재배포합니다.
+
+처음 설정할 때는 저장소의 **Actions → Update draw data → Run workflow** 를 한 번
+눌러 전체 회차를 채워 넣으세요(1회차부터 순차 수집). 데이터가 비어 있는 동안에도
+번호 추첨·조건·이력 기능은 정상 동작하며, 당첨 탭만 안내 문구를 보여줍니다.
+
+```bash
+node scripts/update-draws.mjs --dry-run   # 파일을 쓰지 않고 확인
+node scripts/update-draws.mjs --max=5     # 이번 실행에서 5회차만
+```
 
 ## 고지
 

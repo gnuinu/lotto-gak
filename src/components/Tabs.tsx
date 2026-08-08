@@ -4,6 +4,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'draw', label: '추첨' },
   { id: 'filter', label: '조건' },
   { id: 'history', label: '이력' },
+  { id: 'win', label: '당첨' },
 ];
 
 /**
