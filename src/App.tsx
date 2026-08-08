@@ -2,9 +2,9 @@ import { BottomBar } from './components/BottomBar.tsx';
 import { DrawPanel } from './components/DrawPanel.tsx';
 import { FilterPanel } from './components/FilterPanel.tsx';
 import { HistoryPanel } from './components/HistoryPanel.tsx';
-import { Tabs } from './components/Tabs.tsx';
+import { Tabs, tabButtonId, tabPanelId } from './components/Tabs.tsx';
 import { WinPanel } from './components/WinPanel.tsx';
-import { useLottoStore } from './store/useLottoStore.ts';
+import { useLottoStore, type TabId } from './store/useLottoStore.ts';
 
 export function App() {
   const tab = useLottoStore((s) => s.tab);
@@ -35,13 +35,46 @@ export function App() {
           </div>
         )}
 
-        {tab === 'draw' && <DrawPanel />}
-        {tab === 'filter' && <FilterPanel />}
-        {tab === 'history' && <HistoryPanel />}
-        {tab === 'win' && <WinPanel />}
+        <Panel id="draw" active={tab}>
+          <DrawPanel />
+        </Panel>
+        <Panel id="filter" active={tab}>
+          <FilterPanel />
+        </Panel>
+        <Panel id="history" active={tab}>
+          <HistoryPanel />
+        </Panel>
+        <Panel id="win" active={tab}>
+          <WinPanel />
+        </Panel>
       </main>
 
       <BottomBar />
+    </div>
+  );
+}
+
+/**
+ * 탭 하나에 대응하는 패널. 선택되지 않은 패널은 렌더하지 않는다
+ * (당첨 탭의 데이터 로딩을 필요할 때만 시작하려는 것 — 기존 동작 그대로다).
+ */
+function Panel({
+  id,
+  active,
+  children,
+}: {
+  id: TabId;
+  active: TabId;
+  children: React.ReactNode;
+}) {
+  if (active !== id) return null;
+  return (
+    <div
+      id={tabPanelId(id)}
+      role="tabpanel"
+      aria-labelledby={tabButtonId(id)}
+    >
+      {children}
     </div>
   );
 }
