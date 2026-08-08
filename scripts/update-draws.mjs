@@ -99,17 +99,45 @@ function snippet(text, length = 200) {
   return text.replace(/\s+/g, ' ').trim().slice(0, length);
 }
 
+/** 동행복권 메인 페이지로 보이는지. 조회 주소가 메인으로 리다이렉트되면 이게 온다. */
+function looksLikeMainPage(text) {
+  return text.includes('rsaModulus') || text.length > 50000;
+}
+
 /** JSON 이 아닌 응답을 만났을 때 원인 추측을 덧붙인다. */
 function diagnose(text) {
+  if (looksLikeMainPage(text)) {
+    return (
+      '조회 주소가 동행복권 메인 페이지로 리다이렉트되었습니다. 이 IP(예: GitHub ' +
+      'Actions 런너)에서는 조회가 막혀 있는 것으로 보입니다. 한국 IP 에서 ' +
+      '`npm run update-draws` 로 받아 public/data/draws.json 을 커밋하거나, ' +
+      '시크릿 LOTTO_API_URL 로 조회 주소를 바꾸세요.'
+    );
+  }
   if (/<!DOCTYPE|<html/i.test(text)) {
     return (
-      'JSON 대신 HTML 페이지가 왔습니다. 동행복권이 이 IP(예: GitHub Actions 런너)의 ' +
-      '접근을 막고 있을 가능성이 큽니다. `--probe` 로 응답을 확인하고, 막혀 있다면 ' +
-      '한국 IP 에서 스크립트를 돌려 결과 파일을 커밋하거나 self-hosted 런너를 쓰세요.'
+      'JSON 대신 HTML 페이지가 왔습니다. 접근이 막혀 있을 가능성이 큽니다. ' +
+      '`npm run probe-draws` 로 어떤 요청 조합이 통하는지 확인하세요.'
     );
   }
   return null;
 }
+
+/**
+ * probe 에서 시험할 요청 조합.
+ *
+ * 어느 조합이 통하는지는 접속 IP 에 따라 다르고 로컬에서는 재현할 수 없다.
+ * 그래서 판단을 추측에 맡기지 않고 실제로 하나씩 시험해 본다.
+ */
+const HEADER_VARIANTS = [
+  { name: '브라우저 헤더 + 세션 쿠키', headers: () => requestHeaders() },
+  { name: '브라우저 헤더 (쿠키 없음)', headers: () => ({ ...REQUEST_HEADERS }) },
+  {
+    name: '최소 헤더 (User-Agent 만)',
+    headers: () => ({ 'User-Agent': REQUEST_HEADERS['User-Agent'] }),
+  },
+  { name: '헤더 없음', headers: () => ({}) },
+];
 
 const args = parseArgs(process.argv.slice(2));
 
@@ -185,6 +213,9 @@ function toDraw(payload, expectedRound) {
   };
 }
 
+/** 재시도해도 결과가 같을 실패. 바로 포기한다. */
+class FatalFetchError extends Error {}
+
 /**
  * 한 회차를 조회한다.
  * @returns 회차 데이터, 아직 추첨되지 않았으면 null
@@ -196,10 +227,25 @@ async function fetchRound(round) {
 
   for (let attempt = 1; attempt <= RETRIES; attempt += 1) {
     try {
+      // 리다이렉트를 따라가지 않는다. 조회가 막히면 메인 페이지로 보내는데,
+      // 따라가면 193KB HTML 을 받아놓고 "JSON 이 아니다"라고만 알 수 있다.
       const response = await fetch(url, {
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         headers: requestHeaders(),
+        redirect: 'manual',
       });
+
+      if (response.status >= 300 && response.status < 400) {
+        throw new FatalFetchError(
+          `조회 주소가 리다이렉트되었습니다 (HTTP ${response.status} → ${
+            response.headers.get('location') ?? '위치 없음'
+          }).\n` +
+            '  이 IP 에서는 조회가 막혀 있는 것으로 보입니다. ' +
+            '`npm run probe-draws` 로 어떤 요청 조합이 통하는지 확인하거나, ' +
+            '한국 IP 에서 `npm run update-draws` 로 받아 데이터 파일을 커밋하세요.',
+        );
+      }
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
@@ -228,6 +274,10 @@ async function fetchRound(round) {
       }
       return drawData;
     } catch (error) {
+      // 리다이렉트처럼 결과가 뻔한 실패는 재시도하지 않고 즉시 알린다.
+      if (error instanceof FatalFetchError) {
+        throw new Error(`${round}회차 조회 실패: ${error.message}`);
+      }
       lastError = error;
       if (attempt < RETRIES) await sleep(400 * attempt);
     }
@@ -292,48 +342,78 @@ function serialize(draws) {
  */
 async function probe(round) {
   const url = `${API_URL}&drwNo=${round}`;
-  console.log(`진단 모드 — 수집하지 않고 응답만 확인합니다.`);
+  console.log('진단 모드 — 수집하지 않고 조회 응답만 확인합니다.');
   console.log(`요청 URL: ${url}`);
   await warmUp();
 
-  let response;
-  let text;
-  try {
-    response = await fetch(url, {
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      headers: requestHeaders(),
-    });
-    text = await response.text();
-  } catch (error) {
-    console.log(`연결 자체가 실패했습니다: ${error.message}`);
-    console.log('네트워크가 막혀 있거나 호스트를 찾을 수 없습니다.');
-    process.exit(1);
+  let working = null;
+
+  for (const variant of HEADER_VARIANTS) {
+    console.log(`\n── ${variant.name} ──`);
+
+    let response;
+    let text = '';
+    try {
+      // 리다이렉트를 따라가지 않고 그대로 본다. 어디로 보내는지가 곧 진단이다.
+      response = await fetch(url, {
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        headers: variant.headers(),
+        redirect: 'manual',
+      });
+      if (response.status < 300 || response.status >= 400) {
+        text = await response.text();
+      }
+    } catch (error) {
+      console.log(`  연결 실패: ${error.message}`);
+      continue;
+    }
+
+    console.log(`  상태: HTTP ${response.status}`);
+
+    if (response.status >= 300 && response.status < 400) {
+      console.log(`  리다이렉트 → ${response.headers.get('location') ?? '(위치 없음)'}`);
+      console.log('  판정: 조회가 아닌 다른 곳으로 보내집니다.');
+      continue;
+    }
+
+    console.log(`  content-type: ${response.headers.get('content-type') ?? '없음'}`);
+    console.log(`  본문 길이: ${text.length}바이트`);
+
+    let payload;
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      console.log(`  본문 앞부분: ${snippet(text, 160)}`);
+      console.log(
+        `  판정: JSON 이 아닙니다.${
+          looksLikeMainPage(text) ? ' (메인 페이지로 보입니다)' : ''
+        }`,
+      );
+      continue;
+    }
+
+    console.log(`  JSON 파싱 성공 (returnValue: ${payload.returnValue})`);
+    if (toDraw(payload, round) || payload.returnValue === 'fail') {
+      console.log('  판정: 정상입니다. 이 조합으로 수집할 수 있습니다.');
+      working = variant.name;
+      break;
+    }
+    console.log('  판정: JSON 은 왔지만 형식이 예상과 다릅니다.');
   }
 
-  console.log(`상태: HTTP ${response.status}`);
-  console.log(`최종 URL: ${response.url}`);
-  console.log(`content-type: ${response.headers.get('content-type') ?? '없음'}`);
-  console.log(`본문 길이: ${text.length}바이트`);
-  console.log(`본문 앞부분: ${snippet(text, 500)}`);
-
-  try {
-    const payload = JSON.parse(text);
-    console.log(`JSON 파싱: 성공 (returnValue: ${payload.returnValue})`);
-    if (toDraw(payload, round)) {
-      console.log(`판정: 정상입니다. ${round}회차를 읽을 수 있습니다.`);
-      return;
-    }
-    if (payload.returnValue === 'fail') {
-      console.log(`판정: 정상입니다. ${round}회차는 아직 추첨 전입니다.`);
-      return;
-    }
-    console.log('판정: JSON 은 왔지만 형식이 예상과 다릅니다.');
-    process.exit(1);
-  } catch {
-    console.log('JSON 파싱: 실패');
-    console.log(`판정: ${diagnose(text) ?? 'JSON 이 아닌 응답을 받았습니다.'}`);
-    process.exit(1);
+  console.log('\n════ 결론 ════');
+  if (working) {
+    console.log(`통하는 조합이 있습니다: ${working}`);
+    console.log('이 환경에서 수집이 가능합니다. 워크플로를 그대로 돌리세요.');
+    return;
   }
+
+  console.log('어떤 요청 조합으로도 조회 JSON 을 받지 못했습니다.');
+  console.log('이 IP 에서는 조회가 막혀 있는 것으로 판단됩니다. 다음 중 하나를 쓰세요:');
+  console.log('  1) 한국 IP 에서 `npm run update-draws` 로 받아 public/data/draws.json 커밋');
+  console.log('  2) 저장소 시크릿 LOTTO_API_URL 에 한국 IP 를 경유하는 조회 주소 설정');
+  console.log('  3) 한국에서 돌아가는 self-hosted 런너 사용');
+  process.exit(1);
 }
 
 async function main() {
