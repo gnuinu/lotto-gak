@@ -10,6 +10,15 @@ on:
     # 토요일 실행이 실패했거나 결과 반영이 늦었을 때를 위한 재시도.
     - cron: '0 1 * * 0' # 일 10:00 KST
   workflow_dispatch:
+    inputs:
+      probe:
+        description: '수집하지 않고 조회 응답만 진단한다 (차단 여부 확인용)'
+        type: boolean
+        default: false
+      max:
+        description: '이번 실행에서 받을 최대 회차 수 (비우면 제한 없음)'
+        type: string
+        default: ''
 
 permissions:
   contents: write
@@ -34,8 +43,26 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       # 의존성이 필요 없는 스크립트다(node 내장 fetch 만 쓴다). npm ci 를 건너뛴다.
+      # 입력은 셸에 직접 끼워넣지 않고 환경 변수로 받는다.
       - name: 새 회차 수집
-        run: node scripts/update-draws.mjs
+        env:
+          PROBE: ${{ inputs.probe }}
+          MAX: ${{ inputs.max }}
+          # 런너 IP 가 막혀 있을 때의 탈출구.
+          # 한국 IP 를 경유하는 조회 주소를 저장소 시크릿에 넣으면 그걸 쓴다.
+          # 비어 있으면 스크립트가 기본 주소를 쓴다.
+          LOTTO_API_URL: ${{ secrets.LOTTO_API_URL }}
+        run: |
+          ARGS=""
+          if [ "$PROBE" = "true" ]; then
+            ARGS="--probe"
+          fi
+          case "$MAX" in
+            '' | *[!0-9]*) ;;
+            *) ARGS="$ARGS --max=$MAX" ;;
+          esac
+          echo "실행: node scripts/update-draws.mjs $ARGS"
+          node scripts/update-draws.mjs $ARGS
 
       - name: 변경 사항이 있으면 커밋
         id: commit
