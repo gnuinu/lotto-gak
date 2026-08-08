@@ -191,10 +191,26 @@ src/domain/stats.ts             순수 함수. 데이터를 인자로 받는다
   그래서 `deploy.yml` 의 트리거에 `workflow_call` 이 들어 있다 — 지우지 말 것.
 - 로컬에서 손으로 받아볼 때:
   ```bash
+  npm run update-draws                        # 새 회차만 이어 받기
+  npm run probe-draws                         # 수집하지 않고 응답만 진단
   node scripts/update-draws.mjs --dry-run     # 파일을 쓰지 않고 확인
   node scripts/update-draws.mjs --max=5       # 이번 실행에서 5회차만
   LOTTO_API_URL=http://127.0.0.1:8899/x node scripts/update-draws.mjs  # 모의 서버로 테스트
   ```
+
+### 조회가 막히는 문제 (실제로 겪은 것)
+
+동행복권 조회 주소는 **IP 에 따라 HTTP 200 으로 JSON 대신 HTML 페이지를 돌려준다.**
+GitHub Actions 런너에서 이 일이 실제로 발생했다(2026-08-08). 상태 코드가 200 이라
+`response.ok` 검사로는 걸리지 않는다 — 그래서 본문을 직접 파싱하고 실패를 진단한다.
+
+- 이 상황에 대응하는 장치: 브라우저에 가까운 헤더, 조회 화면 사전 요청으로 세션 쿠키
+  확보, `--probe` 진단 모드, 시크릿 `LOTTO_API_URL` 로 조회 주소 교체.
+- **어떤 헤더 조합이 통하는지는 IP 에 따라 달라 보장할 수 없다.** 막혀 있으면
+  한국 IP 에서 `npm run update-draws` 로 받아 커밋하는 게 가장 확실하다.
+  데이터 파일만 커밋되면 나머지 파이프라인(배포·오프라인 캐시)은 그대로 동작한다.
+- 진단 로그를 만들 때 HTML 본문은 앞부분이 개행뿐일 수 있다. 반드시 공백을 줄인 뒤
+  잘라서 출력한다(`snippet()`). 그러지 않으면 로그에 빈 줄만 남아 원인을 못 찾는다.
 
 ### 통계 문구 원칙
 

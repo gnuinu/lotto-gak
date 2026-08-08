@@ -91,9 +91,37 @@ scripts/
 번호 추첨·조건·이력 기능은 정상 동작하며, 당첨 탭만 안내 문구를 보여줍니다.
 
 ```bash
+npm run update-draws                      # 새 회차만 이어 받기
+npm run probe-draws                       # 수집하지 않고 조회 응답만 진단
 node scripts/update-draws.mjs --dry-run   # 파일을 쓰지 않고 확인
 node scripts/update-draws.mjs --max=5     # 이번 실행에서 5회차만
 ```
+
+### 조회가 막힐 때
+
+동행복권 조회 주소는 **접속하는 IP 에 따라 JSON 대신 HTML 페이지를 돌려주는 경우가
+있습니다**(해외·데이터센터 IP 차단으로 보이는 동작). GitHub Actions 런너에서 이런
+일이 생기면 워크플로가 실패하고, 기존 데이터 파일은 그대로 남습니다.
+
+먼저 원인을 확인하세요 — **Actions → Update draw data → Run workflow** 에서
+`probe` 를 켜고 실행하면 수집하지 않고 응답만 진단합니다(상태 코드, 최종 URL,
+content-type, 본문 앞부분, 판정).
+
+막혀 있다면 세 가지 방법이 있습니다.
+
+1. **로컬(한국 IP)에서 받아 커밋하기** — 가장 확실합니다.
+   ```bash
+   npm run update-draws
+   git add public/data/draws.json
+   git commit -m "chore(data): 당첨 번호 갱신"
+   git push
+   ```
+   `main` 에 push 되면 배포 워크플로가 알아서 다시 배포합니다.
+2. **저장소 시크릿 `LOTTO_API_URL`** — 한국 IP 를 경유하는 조회 주소를 넣으면
+   워크플로가 그 주소를 씁니다(`&drwNo=` 가 뒤에 붙는 형태여야 합니다).
+   비어 있으면 기본 주소를 씁니다.
+3. **self-hosted 런너** — 한국에서 돌아가는 런너를 붙이고 워크플로의 `runs-on` 을
+   바꿉니다.
 
 ## 고지
 
