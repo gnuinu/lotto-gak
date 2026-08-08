@@ -235,6 +235,36 @@ describe('drawGames', () => {
     expect(outcome.reason).toBe('FILTER_TOO_STRICT');
   });
 
+  it('한 번의 추첨에서 같은 조합이 두 번 나오지 않는다', () => {
+    // 고정수 5개면 남은 후보가 40개뿐이라 중복이 흔하게 나오던 조건이다.
+    // (이 보정 전에는 시드 2000개 중 478개가 중복 게임을 만들었다.)
+    for (let seed = 0; seed < 500; seed += 1) {
+      const outcome = drawGames(
+        seed,
+        options({ gameCount: 5, include: [1, 2, 3, 4, 5], maxConsecutive: 6 }),
+      );
+      if (!outcome.ok) throw new Error(`seed ${seed}: ${outcome.reason}`);
+      const keys = outcome.result.games.map((g) => g.numbers.join(','));
+      expect(new Set(keys).size).toBe(keys.length);
+    }
+  });
+
+  it('만들 수 있는 조합보다 게임 수가 많으면 즉시 실패한다', () => {
+    // 고정수 5개 + 후보 3개(6·7·8) -> 서로 다른 조합은 3개뿐이다.
+    const exclude: number[] = [];
+    for (let n = 9; n <= 45; n += 1) exclude.push(n);
+    const base = { include: [1, 2, 3, 4, 5], exclude, maxConsecutive: 6 };
+
+    expect(drawGames(1, options({ ...base, gameCount: 5 }))).toEqual({
+      ok: false,
+      reason: 'FILTER_TOO_STRICT',
+    });
+
+    // 딱 3게임이면 가능해야 한다 — 가능한 조건을 불가능하다고 하면 그게 버그다.
+    const ok = drawGames(1, options({ ...base, gameCount: 3 }));
+    expect(ok.ok).toBe(true);
+  });
+
   it('분포가 한쪽으로 쏠리지 않는다 (모든 번호가 등장)', () => {
     const seen = new Set<number>();
     for (let seed = 0; seed < 200; seed += 1) {

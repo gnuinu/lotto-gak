@@ -10,7 +10,9 @@ interface Props {
 
 export function ResultCard({ result }: Props) {
   return (
-    <div className="card">
+    // 새 번호가 나왔다는 걸 스크린리더에도 알린다. 실패(role="alert")와 달리
+    // 끼어들 일은 아니므로 polite.
+    <div className="card" role="status" aria-live="polite">
       <div className="result-meta">
         <span>{formatDateTime(result.createdAt)}</span>
         <span>

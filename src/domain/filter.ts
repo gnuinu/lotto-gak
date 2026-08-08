@@ -182,11 +182,31 @@ export function validateOptions(options: DrawOptions): DrawFailureReason | null 
  * 연속수 제한처럼 조합 구조에 얽힌 조건은 여기서 판정하지 않고 표본 추출에 맡긴다.
  * 즉 이 함수는 "확실히 불가능한 경우"만 잡는다(false negative 는 허용).
  */
+/**
+ * nCk. 게임 수 비교에만 쓰므로 cap 을 넘으면 계산을 멈추고 cap 을 돌려준다
+ * (C(45,6)=8145060 처럼 큰 값을 끝까지 구할 이유가 없다).
+ */
+function combinations(n: number, k: number, cap: number): number {
+  if (k < 0 || k > n) return 0;
+  let total = 1;
+  for (let i = 1; i <= k; i += 1) {
+    total = (total * (n - k + i)) / i;
+    if (total >= cap) return cap;
+  }
+  return Math.round(total);
+}
+
 export function findInfeasibility(
   options: DrawOptions,
 ): DrawFailureReason | null {
   const pool = candidatePool(options);
   const needed = PICK_COUNT - options.include.length;
+
+  // 게임끼리는 서로 달라야 한다. 만들 수 있는 조합 자체가 게임 수보다 적으면
+  // 필터를 보기 전에 이미 불가능하다. (고정수 5개 + 제외수를 많이 건 경우)
+  if (combinations(pool.length, needed, options.gameCount) < options.gameCount) {
+    return 'FILTER_TOO_STRICT';
+  }
 
   if (options.sumRange) {
     const ascending = pool.slice().sort((a, b) => a - b);
