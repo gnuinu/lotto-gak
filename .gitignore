@@ -6,3 +6,7 @@ dev-dist
 .DS_Store
 .vite
 *.tsbuildinfo
+
+# tsc 가 실수로 emit 했을 때의 산출물. src 는 전부 .ts/.tsx 이므로 .js 는 항상 사고다.
+src/**/*.js
+/vite.config.js
