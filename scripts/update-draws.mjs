@@ -52,6 +52,28 @@ function parseArgs(argv) {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const isValidBall = (n) => Number.isInteger(n) && n >= 1 && n <= 45;
 
+/**
+ * 로그에 넣을 본문 발췌.
+ *
+ * 차단 페이지의 앞부분은 개행과 공백만인 경우가 있다. 그대로 자르면 로그에 빈 줄만
+ * 남아 원인을 못 찾으므로, 공백을 먼저 줄인 뒤 자른다.
+ */
+function snippet(text, limit = 200) {
+  const collapsed = String(text).replace(/\s+/g, ' ').trim();
+  if (collapsed.length === 0) return '(본문이 공백뿐입니다)';
+  return collapsed.length > limit ? `${collapsed.slice(0, limit)}…` : collapsed;
+}
+
+/**
+ * 조회 주소가 JSON 대신 HTML 을 돌려줬는지 판정한다.
+ *
+ * 동행복권은 IP 에 따라 **HTTP 200 으로** 조회 화면 HTML 을 돌려준다.
+ * 상태 코드가 200 이라 response.ok 검사로는 걸리지 않는다 — 본문을 직접 봐야 한다.
+ */
+function looksLikeHtml(text) {
+  return /^\s*(<!doctype|<html|<head|<script|<meta)/i.test(text);
+}
+
 function buildUrl(round) {
   const url = new URL(API_URL);
   url.searchParams.set('srchDir', 'center');
@@ -76,19 +98,66 @@ function toDraw(item) {
   return { round: item.ltEpsd, date, numbers: numbers.slice().sort((a, b) => a - b), bonus: item.bnsWnNo };
 }
 
+/**
+ * 한 번 요청해서 응답 본문과 진단 정보를 함께 돌려준다.
+ * 본문은 text 로 먼저 받는다 — JSON 파싱이 실패했을 때 무엇이 왔는지 보여주려는 것.
+ */
+async function requestRaw(url) {
+  const response = await fetch(url, {
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    headers: REQUEST_HEADERS,
+    redirect: 'follow',
+  });
+  const text = await response.text();
+  return {
+    status: response.status,
+    finalUrl: response.url,
+    contentType: response.headers.get('content-type') ?? '(없음)',
+    text,
+  };
+}
+
+/** 응답 본문에서 회차 목록을 꺼낸다. 실패하면 원인을 담은 Error 를 던진다. */
+function parseBatch(raw) {
+  if (looksLikeHtml(raw.text)) {
+    throw new Error(
+      `JSON 대신 HTML 이 왔습니다 (차단으로 보입니다). ` +
+        `status=${raw.status} url=${raw.finalUrl} content-type=${raw.contentType} ` +
+        `body=${snippet(raw.text)}`,
+    );
+  }
+
+  let payload;
+  try {
+    payload = JSON.parse(raw.text);
+  } catch {
+    throw new Error(
+      `응답을 JSON 으로 읽지 못했습니다. ` +
+        `status=${raw.status} content-type=${raw.contentType} body=${snippet(raw.text)}`,
+    );
+  }
+
+  const list = payload?.data?.list;
+  if (!Array.isArray(list)) {
+    throw new Error(`예상과 다른 응답 구조: ${snippet(JSON.stringify(payload))}`);
+  }
+
+  const draws = list.map(toDraw);
+  if (draws.some((draw) => draw === null)) {
+    throw new Error('응답에 유효하지 않은 당첨번호 항목이 있습니다.');
+  }
+  return draws;
+}
+
 async function fetchBatch(round) {
   const url = buildUrl(round);
   let lastError;
   for (let attempt = 1; attempt <= RETRIES; attempt += 1) {
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS), headers: REQUEST_HEADERS });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const payload = await response.json();
-      const list = payload?.data?.list;
-      if (!Array.isArray(list)) throw new Error(`예상과 다른 응답: ${JSON.stringify(payload).slice(0, 200)}`);
-      const draws = list.map(toDraw);
-      if (draws.some((draw) => draw === null)) throw new Error('응답에 유효하지 않은 당첨번호 항목이 있습니다.');
-      return draws;
+      const raw = await requestRaw(url);
+      // 상태 코드가 200 이어도 본문이 HTML 일 수 있다 — parseBatch 가 그걸 판정한다.
+      if (raw.status >= 400) throw new Error(`HTTP ${raw.status} (${raw.finalUrl})`);
+      return parseBatch(raw);
     } catch (error) {
       lastError = error;
       if (attempt < RETRIES) await sleep(400 * attempt);
@@ -120,12 +189,36 @@ function serialize(draws) {
   return `{\n  "version": 1,\n  "updatedAt": "${new Date().toISOString()}",\n  "draws": [\n${lines.join(',\n')}\n  ]\n}\n`;
 }
 
+/**
+ * 수집하지 않고 조회 응답만 진단한다. 차단 여부를 확인하는 용도.
+ * 재시도 없이 한 번만 요청하고, 무엇이 왔는지 그대로 보여준다.
+ */
 async function probe(round) {
   const url = buildUrl(round);
-  console.log(`요청 URL: ${url}`);
-  const draws = await fetchBatch(round);
-  console.log(`응답: ${draws.length}건`);
-  console.log(draws.map((draw) => `${draw.round}회 (${draw.date})`).join(', ') || '당첨 회차 없음');
+  console.log(`요청 URL   : ${url}`);
+  console.log(`조회 주소  : ${API_URL}${process.env.LOTTO_API_URL?.trim() ? ' (LOTTO_API_URL 사용)' : ' (기본값)'}`);
+
+  const raw = await requestRaw(url);
+  console.log(`상태 코드  : ${raw.status}`);
+  console.log(`최종 URL   : ${raw.finalUrl}`);
+  console.log(`content-type: ${raw.contentType}`);
+  console.log(`본문 길이  : ${raw.text.length}자`);
+  console.log(`본문 앞부분: ${snippet(raw.text)}`);
+
+  try {
+    const draws = parseBatch(raw);
+    console.log(`판정       : 정상 — ${draws.length}건`);
+    console.log(draws.map((draw) => `${draw.round}회 (${draw.date})`).join(', ') || '당첨 회차 없음');
+  } catch (error) {
+    console.log(`판정       : 실패 — ${error.message}`);
+    if (looksLikeHtml(raw.text)) {
+      console.log(
+        '이 IP 에서는 조회가 막혀 있습니다. 한국 IP 에서 `npm run update-draws` 로 받아 ' +
+          '커밋하거나, 시크릿 LOTTO_API_URL 에 우회 주소를 넣으세요.',
+      );
+    }
+    process.exitCode = 1;
+  }
 }
 
 async function main() {
