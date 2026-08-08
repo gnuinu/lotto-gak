@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { findDraw, latestDraw } from '../domain/index.ts';
 import { useLottoStore } from '../store/useLottoStore.ts';
 import { FrequencyCard } from './FrequencyCard.tsx';
+import { ManualCheck } from './ManualCheck.tsx';
 import { MyNumbersCheck } from './MyNumbersCheck.tsx';
 import { WinningNumbers } from './WinningNumbers.tsx';
 
@@ -52,8 +53,11 @@ export function WinPanel() {
   }
 
   const first = draws[0].round;
-  const canGoPrev = current.round > first;
-  const canGoNext = current.round < latest.round;
+  // 회차 번호가 아니라 배열 위치로 움직인다. round ± 1 로 움직이면 데이터에 빠진
+  // 회차가 있을 때 findDraw 가 null 을 주고 최신 회차로 튕겨버린다.
+  const index = draws.findIndex((draw) => draw.round === current.round);
+  const prev = index > 0 ? draws[index - 1] : null;
+  const next = index >= 0 && index < draws.length - 1 ? draws[index + 1] : null;
 
   return (
     <>
@@ -62,9 +66,9 @@ export function WinPanel() {
           <button
             type="button"
             className="round-nav__btn"
-            disabled={!canGoPrev}
+            disabled={!prev}
             aria-label="이전 회차"
-            onClick={() => setSelectedRound(current.round - 1)}
+            onClick={() => prev && setSelectedRound(prev.round)}
           >
             ◀
           </button>
@@ -75,9 +79,9 @@ export function WinPanel() {
           <button
             type="button"
             className="round-nav__btn"
-            disabled={!canGoNext}
+            disabled={!next}
             aria-label="다음 회차"
-            onClick={() => setSelectedRound(current.round + 1)}
+            onClick={() => next && setSelectedRound(next.round)}
           >
             ▶
           </button>
@@ -101,6 +105,7 @@ export function WinPanel() {
         </div>
       </div>
 
+      <ManualCheck draw={current} />
       <MyNumbersCheck draw={current} />
       <FrequencyCard draws={draws} />
     </>

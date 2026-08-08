@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import {
   DEFAULT_MAX_CONSECUTIVE,
   MAX_INCLUDE,
+  PICK_COUNT,
   defaultOptions,
   drawGames,
   latestDraw,
@@ -48,6 +49,13 @@ interface LottoState {
   drawsStatus: DrawsStatus;
   /** 당첨 탭에서 보고 있는 회차. */
   selectedRound: number | null;
+  /**
+   * 당첨 탭에서 직접 입력한 대조용 번호. 최대 6개.
+   *
+   * 일부러 localStorage 에 저장하지 않는다 — 저장 키는 이력 하나만 쓴다는 규칙을
+   * 지키려는 것이고, 이건 "지금 이 회차와 견줘 보는" 임시 입력이다.
+   */
+  manualNumbers: Ball[];
 
   setTab: (tab: TabId) => void;
   setGameCount: (count: number) => void;
@@ -68,6 +76,9 @@ interface LottoState {
 
   loadDrawData: () => Promise<void>;
   setSelectedRound: (round: number) => void;
+  toggleManualNumber: (ball: Ball) => void;
+  clearManualNumbers: () => void;
+  setManualNumbers: (numbers: Ball[]) => void;
 }
 
 /**
@@ -102,6 +113,7 @@ export const useLottoStore = create<LottoState>()((set, get) => ({
   draws: [],
   drawsStatus: 'idle',
   selectedRound: null,
+  manualNumbers: [],
 
   setTab: (tab) => set({ tab }),
 
@@ -259,6 +271,27 @@ export const useLottoStore = create<LottoState>()((set, get) => ({
   },
 
   setSelectedRound: (round) => set({ selectedRound: round }),
+
+  /** 이미 고른 번호면 빼고, 아니면 더한다. 6개가 차면 더 받지 않는다. */
+  toggleManualNumber: (ball) =>
+    set((state) => {
+      if (state.manualNumbers.includes(ball)) {
+        return { manualNumbers: state.manualNumbers.filter((n) => n !== ball) };
+      }
+      if (state.manualNumbers.length >= PICK_COUNT) return {};
+      return {
+        manualNumbers: [...state.manualNumbers, ball].sort((a, b) => a - b),
+      };
+    }),
+
+  clearManualNumbers: () => set({ manualNumbers: [] }),
+
+  setManualNumbers: (numbers) =>
+    set({
+      manualNumbers: Array.from(new Set(numbers))
+        .slice(0, PICK_COUNT)
+        .sort((a, b) => a - b),
+    }),
 }));
 
 export { ballStateOf, DEFAULT_MAX_CONSECUTIVE };
