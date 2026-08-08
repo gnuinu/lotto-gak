@@ -23,16 +23,26 @@ import {
   type Game,
 } from './types.ts';
 
+/** 조합을 집합 키로 만든다. 번호가 오름차순이므로 같은 조합은 같은 문자열이 된다. */
+function gameKey(numbers: readonly Ball[]): string {
+  return numbers.join(',');
+}
+
 /**
  * 조건을 만족하는 한 게임을 rejection sampling 으로 뽑는다.
  *
  * 게임 하나마다 MAX_ATTEMPTS(5000) 회의 예산을 쓴다. 예산을 넘기면 null 을 돌려주고,
  * 호출자가 FILTER_TOO_STRICT 로 변환한다.
+ *
+ * `taken` 에 이미 들어 있는 조합은 거부한다 — 한 번의 추첨에서 A~E 가 같은 번호를
+ * 내놓으면 사용자에겐 그냥 버그로 보인다. 고정수를 5개 걸면 남는 후보가 40개뿐이라
+ * 실제로 5게임 중 중복이 나올 확률이 24% 였다.
  */
 function drawOneGame(
   state: RngState,
   pool: readonly Ball[],
   options: DrawOptions,
+  taken: ReadonlySet<string>,
 ): [Ball[] | null, RngState] {
   const needed = PICK_COUNT - options.include.length;
   let s = state;
@@ -42,6 +52,7 @@ function drawOneGame(
     s = nextState;
 
     const numbers = [...options.include, ...picked].sort((a, b) => a - b);
+    if (taken.has(gameKey(numbers))) continue;
     if (passesFilters(numbers, options)) {
       return [numbers, s];
     }
@@ -71,12 +82,14 @@ export function drawGames(
 
   const pool = candidatePool(options);
   const games: Game[] = [];
+  const taken = new Set<string>();
   let state = createRng(seed);
 
   for (let i = 0; i < options.gameCount; i += 1) {
-    const [numbers, nextState] = drawOneGame(state, pool, options);
+    const [numbers, nextState] = drawOneGame(state, pool, options, taken);
     state = nextState;
     if (!numbers) return { ok: false, reason: 'FILTER_TOO_STRICT' };
+    taken.add(gameKey(numbers));
     games.push({ label: GAME_LABELS[i], numbers });
   }
 
