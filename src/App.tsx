@@ -15,7 +15,8 @@ export function App() {
     <div className="app">
       <header className="app__header">
         <h1 className="app__title">당첨각</h1>
-        <p className="app__subtitle">로또 6/45 번호 생성기 · 오프라인 동작</p>
+        <span className="app__dot" aria-hidden="true" />
+        <p className="app__subtitle">로또 6/45 번호 생성기</p>
       </header>
 
       <Tabs />
