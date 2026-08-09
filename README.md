@@ -64,10 +64,10 @@ src/
   lib/             공 색상표, 문구 변환, localStorage, 공유, 데이터 로딩
   styles/          global.css
 public/data/
-  draws.json       회차별 당첨 번호 (CI 가 자동 갱신)
+  draws.json       1~1234회차 당첨 번호 (CI 가 자동 갱신)
 scripts/
   gen-icons.mjs    PWA 아이콘(PNG) 생성기
-  update-draws.mjs 당첨 번호 수집기 (GitHub Actions 에서 실행)
+  update-draws.mjs 동행복권 당첨 번호 수집기 (GitHub Actions 에서 실행)
 ```
 
 자세한 규칙(도메인/UI 분리, 결정성 계약, 색상표, 실패 처리, 배포 체크리스트)은
@@ -81,48 +81,55 @@ scripts/
 
 ## 당첨 번호 데이터
 
-앱은 **런타임에 외부 API 를 호출하지 않습니다.** 당첨 번호는 저장소에 커밋된 정적
-파일(`public/data/draws.json`)에서 읽습니다.
+앱은 **런타임에 외부 API를 호출하지 않습니다.** 당첨 번호는 저장소에 커밋된 정적
+파일(`public/data/draws.json`)에서 읽습니다. 현재 파일에는 1회차부터 1234회차까지의
+당첨 번호가 포함되어 있습니다.
 
-그 파일은 `.github/workflows/update-draws.yml` 이 매주(토 22:00 KST, 일 10:00 KST
-재시도) 새 회차만 이어 받아 갱신하고, 변경이 있을 때만 커밋 후 재배포합니다.
+수집기는 동행복권 홈페이지에서 사용하는
+`/lt645/selectPstLt645InfoNew.do` 조회 API를 이용합니다. API는 지정 회차 주변의
+최대 10개 회차를 반환하며, 수집기는 응답의 회차·당첨 번호·보너스 번호·추첨일을
+검증한 뒤 정적 파일 형식으로 저장합니다.
 
-처음 설정할 때는 저장소의 **Actions → Update draw data → Run workflow** 를 한 번
-눌러 전체 회차를 채워 넣으세요(1회차부터 순차 수집). 데이터가 비어 있는 동안에도
-번호 추첨·조건·이력 기능은 정상 동작하며, 당첨 탭만 안내 문구를 보여줍니다.
+`.github/workflows/update-draws.yml`은 매주 토요일 22:00 KST에 새 회차를 수집하고,
+일요일 10:00 KST에 한 번 더 재시도합니다. 데이터에 변경이 있을 때만 커밋하고
+재배포합니다.
+
+필요한 경우 저장소의 **Actions → Update draw data → Run workflow**에서 수동으로
+실행할 수 있습니다. 데이터 파일이 비어 있더라도 번호 추첨·조건·이력 기능은
+정상 동작하며, 당첨 번호 탭에는 안내 문구가 표시됩니다.
 
 ```bash
-npm run update-draws                      # 새 회차만 이어 받기
-npm run probe-draws                       # 수집하지 않고 조회 응답만 진단
-node scripts/update-draws.mjs --dry-run   # 파일을 쓰지 않고 확인
-node scripts/update-draws.mjs --max=5     # 이번 실행에서 5회차만
+npm run update-draws                              # 새 회차를 수집하고 파일을 갱신합니다.
+npm run probe-draws -- --from=562                 # 562회차 주변의 API 응답을 확인합니다.
+node scripts/update-draws.mjs --dry-run           # 파일을 저장하지 않고 결과를 확인합니다.
+node scripts/update-draws.mjs --from=1200 --max=5 # 지정 범위의 최대 5회차를 수집합니다.
 ```
 
 ### 조회가 막힐 때
 
-동행복권 조회 주소는 **접속하는 IP 에 따라 JSON 대신 HTML 페이지를 돌려주는 경우가
-있습니다**(해외·데이터센터 IP 차단으로 보이는 동작). GitHub Actions 런너에서 이런
-일이 생기면 워크플로가 실패하고, 기존 데이터 파일은 그대로 남습니다.
+동행복권 조회 API는 접속 환경에 따라 요청을 제한할 수 있습니다. 수집이 실패하더라도
+기존 `public/data/draws.json` 파일은 변경되지 않습니다.
 
-먼저 원인을 확인하세요 — **Actions → Update draw data → Run workflow** 에서
-`probe` 를 켜고 실행하면 수집하지 않고 응답만 진단합니다(상태 코드, 최종 URL,
-content-type, 본문 앞부분, 판정).
+먼저 **Actions → Update draw data → Run workflow**에서 `probe` 옵션을 켜고 실행해
+조회 결과를 확인합니다. `probe`는 데이터를 저장하지 않으며, 요청 URL과 수신한
+회차 목록만 출력합니다.
 
-막혀 있다면 세 가지 방법이 있습니다.
+조회가 제한되면 다음 방법을 사용할 수 있습니다.
 
-1. **로컬(한국 IP)에서 받아 커밋하기** — 가장 확실합니다.
+1. **로컬 환경에서 수집 후 커밋합니다.**
    ```bash
    npm run update-draws
    git add public/data/draws.json
    git commit -m "chore(data): 당첨 번호 갱신"
    git push
    ```
-   `main` 에 push 되면 배포 워크플로가 알아서 다시 배포합니다.
-2. **저장소 시크릿 `LOTTO_API_URL`** — 한국 IP 를 경유하는 조회 주소를 넣으면
-   워크플로가 그 주소를 씁니다(`&drwNo=` 가 뒤에 붙는 형태여야 합니다).
-   비어 있으면 기본 주소를 씁니다.
-3. **self-hosted 런너** — 한국에서 돌아가는 런너를 붙이고 워크플로의 `runs-on` 을
-   바꿉니다.
+   `main` 브랜치에 푸시하면 배포 워크플로가 자동으로 다시 배포합니다.
+2. **저장소 시크릿 `LOTTO_API_URL`을 설정합니다.** 한국 IP를 경유하는 현재 조회 API
+   주소를 설정하면 워크플로가 해당 주소를 사용합니다. 수집기가 `srchDir`,
+   `srchLtEpsd`, `_` 쿼리 매개변수를 자동으로 추가하므로 기본 엔드포인트 주소만
+   설정하면 됩니다.
+3. **self-hosted 러너를 사용합니다.** 한국에서 실행되는 러너를 연결한 뒤 워크플로의
+   `runs-on` 값을 변경합니다.
 
 ## 고지
 
