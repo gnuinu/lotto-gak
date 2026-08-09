@@ -197,8 +197,10 @@ export const useLottoStore = create<LottoState>()((set, get) => ({
     const { options, history } = get();
     const outcome = drawGames(seed, options);
 
+    // 어느 탭에서 뽑았든 결과(또는 실패 안내)가 있는 화면으로 데려간다.
+    // 조건 탭에서 추첨하면 아무 일도 안 일어난 것처럼 보이던 문제를 막는다.
     if (!outcome.ok) {
-      set({ failure: outcome.reason, result: null });
+      set({ failure: outcome.reason, result: null, tab: 'draw' });
       return;
     }
 
@@ -217,6 +219,7 @@ export const useLottoStore = create<LottoState>()((set, get) => ({
     set({
       result: outcome.result,
       failure: null,
+      tab: 'draw',
       // 옵션도 정규화된 형태로 되돌려 UI 표시와 저장된 결과를 일치시킨다.
       options: outcome.result.options,
       history: isRepeat ? history : [entry, ...history].slice(0, HISTORY_LIMIT),

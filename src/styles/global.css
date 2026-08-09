@@ -1,29 +1,61 @@
 /*
- * 테마: 심야 복권판매점
- * 딥 네이비 배경 + 형광 사인 느낌의 포인트 컬러.
- * 모바일 세로 화면 우선. 주요 버튼은 하단 고정.
+ * 당첨각 — 스타일
+ *
+ * 방향: "심야 복권판매점"의 차분한 버전.
+ * 로또 공 5색(규격)이 이미 강한 색이므로, 화면의 나머지는 물러선다.
+ * 강조색은 하나(보라)만 쓰고, 금색은 1등 표시에만 쓴다.
+ *
+ * 다크 테마 원칙 (측정해서 정한 값들):
+ * - 순수 검정 대신 #101318. 깊이는 그림자가 아니라 표면 밝기로 만든다.
+ * - 강조색 채도를 낮춘다(기존 100% → 81%). 어두운 배경에서 채도가 높으면 번진다.
+ * - 모든 본문/캡션 색은 배경 대비 4.5:1 이상. 특히 하단 고지 문구.
+ * - 네온 글로우(text-shadow, box-shadow 번짐)를 쓰지 않는다.
  */
 
 :root {
-  --bg: #0e1420;
-  --bg-elevated: #161e2e;
-  --bg-sunken: #0a0f18;
-  --line: #24304a;
-  --text: #eaf0ff;
-  --text-dim: #8f9cbb;
-  --text-faint: #61708f;
+  /* ── 표면: 위로 갈수록 밝아진다 ── */
+  --bg: #101318;
+  --surface: #171b22;
+  --surface-2: #1e232c;
+  --surface-3: #262c37;
+  --line: #2a303c;
+  --line-soft: #21262f;
 
-  /* 형광 사인 */
-  --neon: #ff4d9d;
-  --neon-soft: rgba(255, 77, 157, 0.18);
-  --neon-2: #48e6d0;
-  --gold: #fbc400;
+  /* ── 글자: 전부 4.5:1 이상 ── */
+  --text: #e8ebf1; /* 15.6:1 */
+  --text-2: #aeb6c6; /*  9.1:1 */
+  --text-3: #8e97a9; /*  6.3:1 */
 
-  --radius: 14px;
-  --radius-sm: 10px;
+  /* ── 강조: 하나만 ── */
+  --accent: #6a5ce8; /* 채움(버튼·선택) — 흰 글자 4.9:1 */
+  --accent-hi: #a79eff; /* 어두운 배경 위 글자·아이콘 8:1 */
+  --accent-bar: #7a6ff0; /* 그래프 막대 — 표면 대비 4.4:1 */
+  --accent-soft: rgba(122, 111, 240, 0.14);
+  --accent-line: rgba(122, 111, 240, 0.45);
 
-  /* 하단 고정 바 높이 + 아이폰 홈바 여백 */
-  --bottom-bar: 132px;
+  /* ── 의미색: 아껴 쓴다 ── */
+  --gold: #e3b23c; /* 1등에만 */
+  --danger: #ff9b9b;
+  --danger-soft: rgba(255, 114, 114, 0.1);
+  --danger-line: rgba(255, 114, 114, 0.4);
+
+  /* ── 형태 ── */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-full: 999px;
+
+  /* ── 글자 크기 (임의값 대신 이 계단만 쓴다) ── */
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-base: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  --fs-2xl: 25px;
+
+  /* 하단 고정 바 높이. BottomBar 가 실제 높이를 재서 덮어쓴다. */
+  --bottom-bar-h: 132px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 
   color-scheme: dark;
@@ -31,17 +63,6 @@
 
 * {
   box-sizing: border-box;
-}
-
-/*
- * 키보드 포커스 표시.
- * 어두운 배경(#0E1420)에서는 브라우저 기본 포커스 링이 잘 안 보인다.
- * :focus-visible 이라 마우스 클릭에는 나타나지 않는다.
- */
-:focus-visible {
-  outline: 2px solid var(--neon-2);
-  outline-offset: 2px;
-  border-radius: 4px;
 }
 
 html,
@@ -57,28 +78,10 @@ body {
   font-family:
     -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Pretendard',
     'Noto Sans KR', 'Malgun Gothic', system-ui, sans-serif;
+  font-size: var(--fs-base);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
-}
-
-/* 배경의 은근한 사인 번짐 */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(
-      60% 40% at 50% -10%,
-      rgba(255, 77, 157, 0.16),
-      transparent 70%
-    ),
-    radial-gradient(
-      50% 35% at 100% 100%,
-      rgba(72, 230, 208, 0.1),
-      transparent 70%
-    );
-  z-index: 0;
 }
 
 button {
@@ -94,11 +97,16 @@ input {
   color: inherit;
 }
 
+/* 키보드 사용자를 위한 초점 표시. 마우스 클릭에는 나타나지 않는다. */
+:focus-visible {
+  outline: 2px solid var(--accent-hi);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 /* ── 앱 골격 ─────────────────────────────────────────── */
 
 .app {
-  position: relative;
-  z-index: 1;
   max-width: 480px;
   margin: 0 auto;
   min-height: 100vh;
@@ -107,242 +115,151 @@ input {
 }
 
 .app__header {
-  padding: 18px 18px 10px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 20px 20px 12px;
 }
 
 .app__title {
   margin: 0;
-  font-size: 26px;
-  font-weight: 800;
+  font-size: var(--fs-xl);
+  font-weight: 700;
   letter-spacing: -0.02em;
-  color: var(--neon);
-  text-shadow:
-    0 0 12px rgba(255, 77, 157, 0.55),
-    0 0 32px rgba(255, 77, 157, 0.25);
+  color: var(--text);
+}
+
+/* 제목 옆 작은 점 하나로 포인트를 준다(네온 글로우 대신) */
+.app__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--accent-hi);
+  transform: translateY(-4px);
 }
 
 .app__subtitle {
-  margin: 4px 0 0;
-  font-size: 12.5px;
-  color: var(--text-dim);
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
 }
 
 .app__main {
   flex: 1;
-  padding: 4px 18px calc(var(--bottom-bar) + var(--safe-bottom));
+  padding: 4px 20px calc(var(--bottom-bar-h) + 16px);
 }
 
 /* ── 탭 ──────────────────────────────────────────────── */
 
 .tabs {
   display: flex;
-  gap: 6px;
-  padding: 6px;
-  margin: 12px 18px 8px;
-  background: var(--bg-sunken);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  gap: 2px;
+  padding: 4px;
+  margin: 8px 20px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-md);
 }
 
 .tabs__item {
   flex: 1;
   padding: 9px 0;
-  border-radius: var(--radius-sm);
-  font-size: 14px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-md);
   font-weight: 600;
-  color: var(--text-dim);
-  transition: background 0.15s ease, color 0.15s ease;
+  color: var(--text-3);
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .tabs__item[aria-selected='true'] {
-  background: var(--neon-soft);
+  background: var(--accent-soft);
   color: var(--text);
-  box-shadow: inset 0 0 0 1px rgba(255, 77, 157, 0.45);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
 }
 
 .tabs__badge {
-  margin-left: 5px;
-  font-size: 11px;
-  color: var(--text-faint);
+  margin-left: 4px;
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
   font-weight: 500;
 }
 
-/* ── 카드 / 섹션 ─────────────────────────────────────── */
+/* ── 카드 / 공통 ─────────────────────────────────────── */
 
 .card {
-  background: var(--bg-elevated);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-lg);
+  padding: 16px;
   margin-bottom: 12px;
 }
 
 .section-title {
-  margin: 0 0 10px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-dim);
-  letter-spacing: 0.02em;
+  margin: 0 0 12px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-3);
+  letter-spacing: 0.01em;
 }
 
 .hint {
-  margin: 8px 0 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--text-faint);
+  margin: 10px 0 0;
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  color: var(--text-3);
 }
 
 .empty {
-  padding: 44px 16px;
+  padding: 48px 16px;
   text-align: center;
-  color: var(--text-faint);
-  font-size: 13.5px;
+  color: var(--text-3);
+  font-size: var(--fs-md);
   line-height: 1.7;
 }
 
-/* ── 로또 공 ─────────────────────────────────────────── */
+/* ── 로또 공 (색상은 실제 규격 — 임의 변경 금지) ────── */
 
 .ball {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: var(--r-full);
   color: #fff;
-  font-weight: 800;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  /* 어두운 배경에서 공이 떠 보이도록, 흰 숫자 대비를 위한 안쪽 그림자 */
-  box-shadow:
-    inset 0 -3px 6px rgba(0, 0, 0, 0.28),
-    inset 0 2px 4px rgba(255, 255, 255, 0.32),
-    0 2px 6px rgba(0, 0, 0, 0.45);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  letter-spacing: -0.02em;
   flex: 0 0 auto;
+  /*
+   * 흰 숫자와 공 색의 대비는 1.6~2.7:1 뿐이다(규격상 바꿀 수 없음).
+   * 아래 그림자가 실제로 가독성을 떠받치고 있으니 지우지 말 것.
+   * 위쪽 하이라이트는 아주 얕게만 줘서 예전의 과한 광택을 피한다.
+   */
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.25),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.18);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
 }
 
 .ball--md {
-  width: 40px;
-  height: 40px;
-  font-size: 16px;
-}
-
-/*
- * 결과 표시용. 6개가 항상 한 줄에 들어가야 하므로 고정 크기 대신
- * 그리드 칸을 꽉 채우고 화면 폭에 따라 커진다.
- */
-.ball--fluid {
-  width: 100%;
-  aspect-ratio: 1;
-  font-size: clamp(13px, 3.7vw, 17px);
+  width: 38px;
+  height: 38px;
+  font-size: var(--fs-lg);
 }
 
 .ball--sm {
-  width: 30px;
-  height: 30px;
-  font-size: 13px;
+  width: 28px;
+  height: 28px;
+  font-size: var(--fs-sm);
 }
 
-/* ── 게임 수 선택 ────────────────────────────────────── */
-
-.count-row {
-  display: flex;
-  gap: 8px;
-}
-
-.count-row__item {
-  flex: 1;
-  padding: 12px 0;
-  border-radius: var(--radius-sm);
-  background: var(--bg-sunken);
-  border: 1px solid var(--line);
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-dim);
-}
-
-.count-row__item[aria-pressed='true'] {
-  background: var(--neon-soft);
-  border-color: var(--neon);
-  color: #fff;
-}
-
-/* ── 결과 ────────────────────────────────────────────── */
-
-.game-row {
-  display: grid;
-  grid-template-columns: 18px 1fr auto;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 0;
-  border-bottom: 1px dashed rgba(36, 48, 74, 0.8);
-}
-
-.game-row:last-child {
-  border-bottom: none;
-}
-
-.game-row__label {
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--neon-2);
-}
-
-.game-row__balls {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 5px;
-  min-width: 0;
-}
-
-.game-row__sum {
-  font-size: 11px;
-  color: var(--text-faint);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.result-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
-  font-size: 12px;
-  color: var(--text-dim);
-}
-
-.result-meta__seed {
-  font-variant-numeric: tabular-nums;
-  color: var(--neon-2);
-  font-weight: 700;
-}
-
-.failure {
-  border-color: rgba(255, 114, 114, 0.55);
-  background: rgba(255, 114, 114, 0.09);
-  color: #ffd9d9;
-  font-size: 13.5px;
-  line-height: 1.6;
-}
-
-.notice {
-  margin-bottom: 12px;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  background: rgba(251, 196, 0, 0.1);
-  border: 1px solid rgba(251, 196, 0, 0.4);
-  color: #ffe9a8;
-  font-size: 12.5px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.notice__close {
-  margin-left: auto;
-  color: #ffe9a8;
-  font-size: 16px;
-  line-height: 1;
-  padding: 2px 4px;
+/* 6개가 항상 한 줄에 들어가야 한다 — 고정 크기 대신 칸을 채운다 */
+.ball--fluid {
+  width: 100%;
+  aspect-ratio: 1;
+  font-size: clamp(13px, 3.6vw, 16px);
 }
 
 /* ── 버튼 ────────────────────────────────────────────── */
@@ -352,27 +269,30 @@ input {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 11px 14px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-sunken);
+  min-height: 42px;
+  padding: 10px 14px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
   border: 1px solid var(--line);
-  font-size: 13.5px;
+  font-size: var(--fs-md);
   font-weight: 600;
   color: var(--text);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--surface-3);
 }
 
 .btn:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: default;
 }
 
 .btn--ghost {
   background: transparent;
-}
-
-.btn--danger {
-  color: #ff9f9f;
-  border-color: rgba(255, 114, 114, 0.35);
 }
 
 .btn--block {
@@ -381,20 +301,25 @@ input {
 
 .btn--primary {
   width: 100%;
-  padding: 17px 0;
-  font-size: 17px;
-  font-weight: 800;
-  color: #12060d;
-  background: linear-gradient(180deg, #ff6fb1, var(--neon));
+  min-height: 52px;
+  padding: 15px 0;
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent);
   border: none;
-  box-shadow:
-    0 0 18px rgba(255, 77, 157, 0.45),
-    0 6px 18px rgba(0, 0, 0, 0.5);
-  letter-spacing: 0.02em;
+  letter-spacing: -0.01em;
+  transition:
+    transform 0.08s ease,
+    background 0.15s ease;
+}
+
+.btn--primary:hover {
+  background: #7466ee;
 }
 
 .btn--primary:active {
-  transform: translateY(1px);
+  transform: scale(0.985);
 }
 
 .btn-row {
@@ -406,6 +331,155 @@ input {
   flex: 1;
 }
 
+/*
+ * 카드 안의 작은 보조 버튼. 손가락으로 누를 수 있는 크기를 지킨다.
+ * .history-item__btn 은 같은 것의 옛 이름이다 — WinPanel·ManualCheck 가 아직 쓴다.
+ */
+.btn-mini,
+.history-item__btn {
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-2);
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.btn-mini:hover:not(:disabled),
+.history-item__btn:hover:not(:disabled) {
+  background: var(--surface-3);
+}
+
+.btn-mini:disabled,
+.history-item__btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.btn-mini--danger,
+.history-item__btn--danger {
+  color: var(--danger);
+  border-color: var(--line);
+}
+
+/* ── 게임 수 선택 ────────────────────────────────────── */
+
+.count-row {
+  display: flex;
+  gap: 6px;
+}
+
+.count-row__item {
+  flex: 1;
+  min-height: 46px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.count-row__item[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--text);
+}
+
+/* ── 결과 ────────────────────────────────────────────── */
+
+.result-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+
+.result-meta__seed {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+.game-row {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.game-row + .game-row {
+  border-top: 1px solid var(--line-soft);
+}
+
+.game-row__label {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--text-3);
+}
+
+.game-row__balls {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 5px;
+  min-width: 0;
+}
+
+.game-row__sum {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ── 알림 ────────────────────────────────────────────── */
+
+.failure {
+  border-color: var(--danger-line);
+  background: var(--danger-soft);
+  color: #ffd9d9;
+  font-size: var(--fs-md);
+  line-height: 1.6;
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 11px 13px;
+  border-radius: var(--r-md);
+  background: rgba(227, 178, 60, 0.09);
+  border: 1px solid rgba(227, 178, 60, 0.35);
+  color: #f0d9a0;
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+.notice__close {
+  margin-left: auto;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-sm);
+  color: #f0d9a0;
+  font-size: var(--fs-lg);
+  line-height: 1;
+}
+
 /* ── 하단 고정 바 ────────────────────────────────────── */
 
 .bottom-bar {
@@ -414,10 +488,10 @@ input {
   left: 0;
   right: 0;
   z-index: 5;
-  padding: 10px 18px calc(8px + var(--safe-bottom));
-  background: linear-gradient(180deg, rgba(14, 20, 32, 0.75), var(--bg) 42%);
-  backdrop-filter: blur(10px);
-  border-top: 1px solid var(--line);
+  padding: 12px 20px calc(10px + var(--safe-bottom));
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line-soft);
 }
 
 .bottom-bar__inner {
@@ -425,12 +499,13 @@ input {
   margin: 0 auto;
 }
 
+/* 법적 고지 — 항상 보이고 항상 읽혀야 한다 (대비 6.3:1) */
 .disclaimer {
-  margin: 9px 0 0;
+  margin: 10px 0 0;
   text-align: center;
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   line-height: 1.5;
-  color: var(--text-faint);
+  color: var(--text-3);
 }
 
 /* ── 번호 그리드 ─────────────────────────────────────── */
@@ -443,70 +518,76 @@ input {
 
 .grid__cell {
   aspect-ratio: 1;
-  border-radius: 50%;
-  background: var(--bg-sunken);
+  border-radius: var(--r-full);
+  background: var(--surface-2);
   border: 1px solid var(--line);
-  color: var(--text-dim);
-  font-size: 14px;
-  font-weight: 700;
+  color: var(--text-2);
+  font-size: var(--fs-base);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.1s ease;
+  transition:
+    transform 0.1s ease,
+    background 0.15s ease;
 }
 
 .grid__cell:active {
-  transform: scale(0.92);
+  transform: scale(0.9);
 }
 
+/* 고정수: 공 색으로 채우고 강조색 링을 두른다 */
 .grid__cell--include {
   color: #fff;
   border-color: transparent;
   box-shadow:
-    inset 0 -3px 6px rgba(0, 0, 0, 0.28),
-    inset 0 2px 4px rgba(255, 255, 255, 0.32),
-    0 0 0 2px var(--neon-2);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+    inset 0 1px 1px rgba(255, 255, 255, 0.25),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.18),
+    0 0 0 2px var(--accent-hi);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
 }
 
+/* 제외수: 색이 아니라 취소선으로도 구분되게 한다 */
 .grid__cell--exclude {
-  color: var(--text-faint);
+  color: var(--text-3);
   background: transparent;
-  border-color: rgba(255, 114, 114, 0.5);
+  border-color: var(--line);
+  border-style: dashed;
   text-decoration: line-through;
-  opacity: 0.75;
+  opacity: 0.6;
 }
 
 .legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  margin: 12px 0 0;
-  font-size: 11.5px;
-  color: var(--text-faint);
+  gap: 14px;
+  margin-top: 14px;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
 }
 
 .legend__item {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
 }
 
 .legend__dot {
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--r-full);
   border: 1px solid var(--line);
 }
 
 .legend__dot--include {
-  border-color: var(--neon-2);
-  box-shadow: 0 0 0 1px var(--neon-2);
+  border-color: var(--accent-hi);
+  box-shadow: 0 0 0 1px var(--accent-hi);
 }
 
 .legend__dot--exclude {
-  border-color: rgba(255, 114, 114, 0.6);
+  border-style: dashed;
+  border-color: var(--text-3);
 }
 
 /* ── 필터 컨트롤 ─────────────────────────────────────── */
@@ -515,103 +596,114 @@ input {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 4px 0;
+  gap: 14px;
 }
 
 .field__label {
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 600;
 }
 
 .field__desc {
   margin: 3px 0 0;
-  font-size: 11.5px;
-  color: var(--text-faint);
+  font-size: var(--fs-sm);
+  color: var(--text-3);
 }
 
-/* 토글 스위치 */
 .switch {
   position: relative;
   flex: 0 0 auto;
-  width: 48px;
-  height: 28px;
-  border-radius: 999px;
-  background: var(--bg-sunken);
+  width: 50px;
+  height: 30px;
+  border-radius: var(--r-full);
+  background: var(--surface-2);
   border: 1px solid var(--line);
-  transition: background 0.16s ease, border-color 0.16s ease;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease;
 }
 
 .switch[aria-checked='true'] {
-  background: var(--neon-soft);
-  border-color: var(--neon);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 .switch__knob {
   position: absolute;
   top: 3px;
   left: 3px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--text-faint);
-  transition: transform 0.16s ease, background 0.16s ease;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-full);
+  background: var(--text-3);
+  transition:
+    transform 0.16s ease,
+    background 0.16s ease;
 }
 
 .switch[aria-checked='true'] .switch__knob {
   transform: translateX(20px);
-  background: var(--neon);
-  box-shadow: 0 0 10px rgba(255, 77, 157, 0.7);
+  background: #fff;
 }
 
 .range-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .num-input {
   width: 100%;
   min-width: 0;
+  min-height: 44px;
   padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-sunken);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
   border: 1px solid var(--line);
   font-variant-numeric: tabular-nums;
   text-align: center;
+  transition: border-color 0.15s ease;
+}
+
+.num-input::placeholder {
+  color: var(--text-3);
 }
 
 .num-input:focus {
-  /* outline 을 지우지 말 것 — 위의 :focus-visible 규칙이 키보드 포커스를 표시한다. */
-  border-color: var(--neon);
+  outline: none;
+  border-color: var(--accent-hi);
 }
 
 .range-row__tilde {
-  color: var(--text-faint);
+  color: var(--text-3);
 }
 
 .chip-row {
   display: flex;
-  gap: 8px;
-  margin-top: 4px;
+  gap: 6px;
 }
 
 .chip {
   flex: 1;
-  padding: 10px 0;
-  border-radius: var(--radius-sm);
-  background: var(--bg-sunken);
+  min-height: 40px;
+  padding: 9px 4px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
   border: 1px solid var(--line);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
-  color: var(--text-dim);
+  color: var(--text-3);
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .chip[aria-pressed='true'] {
-  background: var(--neon-soft);
-  border-color: var(--neon);
-  color: #fff;
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--text);
 }
 
 /* ── 시드 ────────────────────────────────────────────── */
@@ -619,7 +711,6 @@ input {
 .seed-row {
   display: flex;
   gap: 8px;
-  margin-top: 10px;
 }
 
 .seed-row .num-input {
@@ -633,13 +724,25 @@ input {
 
 /* ── 이력 ────────────────────────────────────────────── */
 
-.history-item {
-  padding: 12px 0;
-  border-bottom: 1px solid var(--line);
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
-.history-item:last-child {
-  border-bottom: none;
+.toolbar__count {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+
+.history-item {
+  padding: 14px 0;
+}
+
+.history-item + .history-item {
+  border-top: 1px solid var(--line-soft);
 }
 
 .history-item__head {
@@ -647,36 +750,48 @@ input {
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 8px;
-  font-size: 11.5px;
-  color: var(--text-faint);
+  margin-bottom: 10px;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
   white-space: nowrap;
 }
 
 .history-item__seed {
-  color: var(--neon-2);
+  color: var(--text-2);
   font-variant-numeric: tabular-nums;
 }
 
 .history-item__actions {
   margin-left: auto;
   display: flex;
-  gap: 6px;
+  gap: 2px;
 }
 
-.history-item__btn {
-  padding: 5px 9px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--text-dim);
-  white-space: nowrap;
+/*
+ * 이력의 동작 버튼은 항목마다 반복된다. 테두리를 두르면 화면이 버튼으로 도배된다.
+ * 특히 '삭제'가 제일 눈에 띄면 안 된다 — 되돌릴 수 없는 동작이 가장 튀는 건 나쁘다.
+ * 그래서 글자만 남기고, 누를 수 있는 크기는 여백으로 지킨다.
+ */
+.history-item__actions .btn-mini,
+.history-item__actions .history-item__btn {
+  background: transparent;
+  border-color: transparent;
+  padding: 7px 9px;
+  color: var(--text-3);
 }
 
+.history-item__actions .btn-mini:hover {
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.history-item__actions .btn-mini--danger,
 .history-item__btn--danger {
-  color: #ff9f9f;
-  border-color: rgba(255, 114, 114, 0.3);
+  color: var(--text-3);
+}
+
+.history-item__actions .btn-mini--danger:hover {
+  color: var(--danger);
 }
 
 .history-item__games {
@@ -686,48 +801,42 @@ input {
 }
 
 .history-item__row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 14px repeat(6, 1fr);
   align-items: center;
   gap: 5px;
+  max-width: 280px;
 }
 
 .history-item__label {
-  width: 16px;
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--text-faint);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--text-3);
 }
 
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 6px;
-}
-
-.toolbar__count {
-  font-size: 12px;
-  color: var(--text-dim);
-}
-
-/* ── 당첨 번호 (Phase 2) ─────────────────────────────── */
+/* ── 당첨 번호 ───────────────────────────────────────── */
 
 .round-nav {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .round-nav__btn {
   flex: 0 0 auto;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: var(--bg-sunken);
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-full);
+  background: var(--surface-2);
   border: 1px solid var(--line);
-  color: var(--text-dim);
-  font-size: 12px;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  transition: background 0.15s ease;
+}
+
+.round-nav__btn:hover:not(:disabled) {
+  background: var(--surface-3);
 }
 
 .round-nav__btn:disabled {
@@ -741,16 +850,17 @@ input {
 }
 
 .round-nav__round {
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--neon-2);
-  text-shadow: 0 0 14px rgba(72, 230, 208, 0.45);
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
 }
 
 .round-nav__date {
   margin-top: 2px;
-  font-size: 11.5px;
-  color: var(--text-faint);
+  font-size: var(--fs-sm);
+  color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
 
@@ -759,13 +869,13 @@ input {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-top: 14px;
+  margin-top: 16px;
 }
 
 .winning {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .winning__main {
@@ -777,112 +887,99 @@ input {
 }
 
 .winning__plus {
-  color: var(--text-faint);
-  font-size: 14px;
-  font-weight: 700;
+  color: var(--text-3);
+  font-size: var(--fs-md);
 }
 
 .winning__bonus {
-  position: relative;
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
+  width: 38px;
 }
 
 .winning__bonus-label {
-  font-size: 9px;
-  color: var(--text-faint);
+  font-size: 9.5px;
+  color: var(--text-3);
 }
 
-/* 결과 카드와 같은 비율로 보이도록 당첨 번호도 칸을 채운다 */
 .winning__main .ball--md,
 .winning__bonus .ball--md {
   width: 100%;
   height: auto;
   aspect-ratio: 1;
-  font-size: clamp(13px, 3.5vw, 17px);
+  font-size: clamp(13px, 3.5vw, 16px);
 }
 
-.winning__bonus .ball--md {
-  width: 34px;
-}
-
-/* ── 등수 배지 / 대조 결과 ───────────────────────────── */
+/* ── 등수 배지 / 대조 ────────────────────────────────── */
 
 .rank-tally {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 10px 0 4px;
+  margin: 12px 0 2px;
 }
 
 .rank-badge {
   flex: 0 0 auto;
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 800;
+  padding: 4px 9px;
+  border-radius: var(--r-full);
+  font-size: var(--fs-xs);
+  font-weight: 700;
   white-space: nowrap;
-  background: var(--bg-sunken);
+  background: var(--surface-2);
   border: 1px solid var(--line);
-  color: var(--text-dim);
+  color: var(--text-2);
 }
 
+/* 1등만 금색. 나머지는 조용히. */
 .rank-badge--1 {
-  background: rgba(251, 196, 0, 0.16);
-  border-color: var(--gold);
-  color: #ffe9a8;
+  background: rgba(227, 178, 60, 0.14);
+  border-color: rgba(227, 178, 60, 0.55);
+  color: #f2d795;
 }
 
 .rank-badge--2 {
-  background: rgba(255, 77, 157, 0.14);
-  border-color: rgba(255, 77, 157, 0.6);
-  color: #ffc8de;
-}
-
-.rank-badge--3 {
-  background: rgba(72, 230, 208, 0.12);
-  border-color: rgba(72, 230, 208, 0.5);
-  color: #b9f5ec;
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent-hi);
 }
 
 .check-list {
   display: flex;
   flex-direction: column;
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
-/* 좁은 화면에서 공과 글자가 부딪히지 않도록 두 줄로 나눈다 */
 .check-row {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 10px 0;
-  border-bottom: 1px dashed rgba(36, 48, 74, 0.8);
+  gap: 8px;
+  padding: 12px 0;
 }
 
-.check-row:last-child {
-  border-bottom: none;
+.check-row + .check-row {
+  border-top: 1px solid var(--line-soft);
 }
 
 .check-row__head {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   white-space: nowrap;
 }
 
 .check-row__count {
-  color: var(--text-dim);
+  color: var(--text-2);
   font-weight: 600;
 }
 
 .check-row__date {
   margin-left: auto;
-  color: var(--text-faint);
+  color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
 
@@ -891,7 +988,6 @@ input {
   grid-template-columns: repeat(6, 1fr);
   gap: 5px;
   min-width: 0;
-  /* 카드 폭을 다 쓰면 공이 과하게 커진다. 결과 카드와 비슷한 크기로 묶어둔다. */
   max-width: 268px;
 }
 
@@ -900,38 +996,72 @@ input {
   min-width: 0;
 }
 
-/* 당첨 번호와 겹치지 않은 번호는 뒤로 물린다 */
+/* 겹치지 않은 번호는 뒤로 물린다 */
 .ball-wrap--miss {
-  opacity: 0.32;
-  filter: saturate(0.5);
+  opacity: 0.28;
+  filter: saturate(0.4);
 }
 
-/* ── 출현 횟수 ───────────────────────────────────────── */
+/* ── 출현 횟수 (막대) ────────────────────────────────── */
 
-.freq-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px 4px;
-  margin-top: 12px;
-}
-
-.freq-cell {
+/*
+ * 색은 공(규격)이 이미 쓰고 있으므로, 크기는 단색 막대 하나로만 나타낸다.
+ * 45개를 색으로 구분하려 들면 아무것도 안 보인다.
+ */
+.freq-list {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 14px;
 }
 
-.freq-cell__count {
-  font-size: 11.5px;
+.freq-row {
+  display: grid;
+  grid-template-columns: 28px 1fr 26px;
+  align-items: center;
+  gap: 10px;
+}
+
+.freq-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.freq-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--accent-bar);
+  min-width: 4px;
+}
+
+.freq-count {
+  font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
-  color: var(--text-dim);
-  min-width: 18px;
+  color: var(--text-2);
+  text-align: right;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* 되돌릴 수 없는 동작을 확인받는 줄 */
+.confirm-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.confirm-row__text {
+  margin-right: 2px;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  white-space: nowrap;
 }

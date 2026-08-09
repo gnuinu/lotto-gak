@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react';
+
 import { useLottoStore } from '../store/useLottoStore.ts';
 
 /**
@@ -7,11 +9,35 @@ import { useLottoStore } from '../store/useLottoStore.ts';
 export function BottomBar() {
   const draw = useLottoStore((s) => s.draw);
   const gameCount = useLottoStore((s) => s.options.gameCount);
+  const barRef = useRef<HTMLDivElement>(null);
+
+  /*
+   * 실제 바 높이를 CSS 변수로 알려준다.
+   * 고지 문구는 글자 크기·화면 폭에 따라 줄 수가 달라지므로, 높이를 상수로 박아두면
+   * 본문 맨 아래가 바에 가려진다(실제로 가려졌다). 재서 넘기면 그럴 일이 없다.
+   */
+  useEffect(() => {
+    const element = barRef.current;
+    if (!element) return;
+
+    const apply = () => {
+      document.documentElement.style.setProperty(
+        '--bottom-bar-h',
+        `${element.offsetHeight}px`,
+      );
+    };
+
+    apply();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(apply);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <div className="bottom-bar">
+    <div className="bottom-bar" ref={barRef}>
       <div className="bottom-bar__inner">
-        <button type="button" className="btn btn--primary" onClick={draw}>
+        <button type="button" className="btn--primary" onClick={draw}>
           {gameCount}게임 추첨하기
         </button>
         <p className="disclaimer">
